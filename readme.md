@@ -1,3 +1,5 @@
+![preview](preview.png)
+
 a piano keyboard for [Uxn](https://100r.co/site/uxn.html). run it like this:
 
 ```
