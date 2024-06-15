@@ -1,0 +1,261 @@
+( piano )
+
+|00 @System &vector $2 &expansion $2 &wst $1 &rst $1 &metadata $2 &r $2 &g $2 &b $2 &debug $1 &state $1
+|20 @Screen &vector $2 &width $2 &height $2 &auto $1 &pad $1 &x $2 &y $2 &addr $2 &pixel $1 &sprite $1
+|30 @Audio0 &vector $2 &position $2 &output $1 &pad $3 &adsr $2 &length $2 &addr $2 &volume $1 &pitch $1
+|40 @Audio1 &vector $2 &position $2 &output $1 &pad $3 &adsr $2 &length $2 &addr $2 &volume $1 &pitch $1
+|50 @Audio2 &vector $2 &position $2 &output $1 &pad $3 &adsr $2 &length $2 &addr $2 &volume $1 &pitch $1
+|60 @Audio3 &vector $2 &position $2 &output $1 &pad $3 &adsr $2 &length $2 &addr $2 &volume $1 &pitch $1
+|80 @Controller &vector $2 &button $1 &key $1
+|90 @Mouse &vector $2 &x $2 &y $2 &state $1 &chord $1 &pad $4 &scrolly &scrolly-hb $1 &scrolly-lb $1
+|000
+
+	@octave $1
+	@port $1
+	@presses $0c
+	@mouse $1
+
+|100
+
+@On-reset ( -> )
+	#f29f .System/r DEO2
+	#c08f .System/g DEO2
+	#317f .System/b DEO2
+	#0070 .Screen/width DEO2
+	#0038 .Screen/height DEO2
+	#4000
+	&audio ( -- )
+	DUP .Audio0/adsr ADD #040c ROT DEO2
+	DUP .Audio0/length ADD #0100 ROT DEO2
+	DUP .Audio0/addr ADD ;note-pcm ROT DEO2
+	#88 OVR .Audio0/volume ADD DEO
+	#10 ADD GTHk ?/audio
+	POP2 [ LIT2 05 -octave ] STZ
+	<draw-octaves>
+	[ LIT2 -Audio0/pitch -port ] STZ
+	;on-key .Controller/vector DEO2
+	;on-frame .Screen/vector DEO2
+	;on-mouse .Mouse/vector DEO2
+	BRK
+
+@on-key ( -> )
+	.Controller/key DEI DUP #1b NEQ ?{ #800f DEO
+		BRK }
+	DUP [ LIT "a ] NEQ ?{ #00 !/note }
+	DUP [ LIT "w ] NEQ ?{ #01 !/note }
+	DUP [ LIT "s ] NEQ ?{ #02 !/note }
+	DUP [ LIT "e ] NEQ ?{ #03 !/note }
+	DUP [ LIT "d ] NEQ ?{ #04 !/note }
+	DUP [ LIT "f ] NEQ ?{ #05 !/note }
+	DUP [ LIT "t ] NEQ ?{ #06 !/note }
+	DUP [ LIT "g ] NEQ ?{ #07 !/note }
+	DUP [ LIT "y ] NEQ ?{ #08 !/note }
+	DUP [ LIT "h ] NEQ ?{ #09 !/note }
+	DUP [ LIT "u ] NEQ ?{ #0a !/note }
+	DUP [ LIT "j ] NEQ ?{ #0b !/note }
+	DUP [ LIT "1 ] NEQ ?{ #03 !/octave }
+	DUP [ LIT "2 ] NEQ ?{ #04 !/octave }
+	DUP [ LIT "3 ] NEQ ?{ #05 !/octave }
+	DUP [ LIT "4 ] NEQ ?{ #06 !/octave }
+	DUP [ LIT "5 ] NEQ ?{ #07 !/octave }
+	POP BRK
+	&note ( key note -> )
+	<key>
+	POP BRK
+	&octave ( key n -> )
+	<octave>
+	POP BRK
+
+@on-mouse ( -> )
+	[ LIT2 &x $2 ] .Screen/x DEO2
+	[ LIT2 &y $2 ] .Screen/y DEO2
+	/position #81 .Screen/auto DEO
+	;blank-icn .Screen/addr DEO2
+	#41 .Screen/sprite DEOk DEO
+	.Mouse/x DEI2 DUP2 ,/x STR2
+	.Screen/x DEO2
+	.Mouse/y DEI2 DUP2 ,/y STR2
+	.Screen/y DEO2
+	[ LIT2 00 -mouse ] LDZ EQU ?{
+		/position #c1 #16 .Screen/auto DEO
+		;finger .Screen/addr DEO2
+		.Screen/sprite DEOk DEOk DEOk ;finger/body .Screen/addr DEO2
+		DEOk DEOk ;finger/body .Screen/addr DEO2
+		DEOk DEOk ;finger/body .Screen/addr DEO2
+		DEOk DEO }
+	.Mouse/state DEI ?{
+		[ LIT2 01 -mouse ] STZ
+		BRK }
+	#00 .Mouse/state DEO
+	<finger-press>
+	BRK
+	&position ( -- )
+	.Screen/x DEI2k #0008 SUB2 ROT DEO2
+	.Screen/y DEI2k #0004 SUB2 ROT DEO2
+	JMP2r
+
+@<finger-press> ( -- )
+	.Mouse/y DEI2 #0010 LTH2 ?/octave
+	.Mouse/y DEI2 #0027 GTH2 ?{
+		;/b-end ;/black
+		&b ( >-< )
+		.Mouse/x DEI2 OVR2 LDA2 SUB2 #0008 GTH2 ?{
+			NIP2 INC2 INC2 LDA !<key> }
+		INC2 INC2 INC2 GTH2k ?/b
+		POP2 POP2 }
+	#00
+	&w ( -- )
+	#00 OVR INC #40 SFT2 .Mouse/x DEI2 LTH2 ?{
+		#00 OVR ;/white ADD2 LDA !<key> }
+	INC !/w
+	&black [
+	000c 01 001c 03 003c 06 004c 08
+	005c 0a ]
+	&b-end &white [ 00 02 04 05 07 09 0b ]
+	&octave ( -> )
+	.Mouse/x DEI2 #0004 SUB2 #03 SFT2 NIP DUP #05 LTH ?{ POP BRK }
+	INC INC INC <octave>
+	BRK
+
+@on-frame ( -> )
+	#0c00
+	&key ( -- )
+	DUP .presses ADD LDZ #00 EQU ?{
+		DUP .presses ADD LDZk INC SWP STZ }
+	INC GTHk ?/key
+	POP2 #0c00
+	&note ( -- )
+	DUP <draw-note>
+	INC GTHk ?/note
+	POP2 BRK
+
+@<key> ( note -- )
+	DUP .octave LDZ #0c MUL ADD .port LDZ DEO
+	.presses ADD #f0 SWP STZ
+	.port LDZk #10 ADD DUP #70 LTH ?{ POP .Audio0/pitch }
+	SWP STZ
+	JMP2r
+
+@<octave> ( n -- )
+	.octave STZ
+	<draw-octaves>
+	JMP2r
+
+@<draw-note> ( n -- )
+	#8a OVR .presses ADD LDZ ?{ #05 SUB }
+	,&mode STR
+	#00 SWP #20 SFT2 ;/table ADD2 LDA2k SWP2 INC2 INC2 LDA2 JMP2
+	&table [
+	0000 =/right 0008 =/black
+	0010 =/regular 0018 =/black
+	0020 =/left 0030 =/right
+	0038 =/black 0040 =/regular
+	0048 =/black 0050 =/regular
+	0058 =/black 0060 =/left ]
+	&position ( x* -- )
+	.Screen/x DEO2
+	#0010 .Screen/y DEO2
+	JMP2r
+	&sprite ( mode port -- )
+	[ LIT2 &mode $1 -Screen/sprite ] JMP2r
+	&regular ( x* -- )
+	DUP2 /position [ LIT2 25 -Screen/auto ] DEO
+	;tile/left .Screen/addr DEO2
+	/sprite DEOk DEO
+	!/bottom
+	&left ( x* -- )
+	DUP2 /position [ LIT2 25 -Screen/auto ] DEO
+	;tile/left .Screen/addr DEO2
+	/sprite DEOk ;tile/right-full .Screen/addr DEO2
+	DEO
+	!/bottom
+	&right ( x* -- )
+	DUP2 /position [ LIT2 25 -Screen/auto ] DEO
+	;tile/left-full .Screen/addr DEO2
+	/sprite DEOk ;tile/right .Screen/addr DEO2
+	DEO
+	( >> )
+	&bottom ( x* -- )
+	.Screen/x DEO2
+	#0028 .Screen/y DEO2
+	[ LIT2 16 -Screen/auto ] DEO
+	;tile/bottom .Screen/addr DEO2
+	/sprite DEOk DEO
+	JMP2r
+	&black ( x* -- )
+	/position [ LIT2 25 -Screen/auto ] DEO
+	;tile/black .Screen/addr DEO2
+	/sprite DEOk DEO
+	JMP2r
+
+@<draw-octaves> ( -- )
+	#0004 .Screen/x DEO2k INC INC DEO2
+	[ LIT2 01 -Screen/auto ] DEO
+	;octave-icn .Screen/addr DEO2
+	#0803 .octave LDZ
+	&octave ( -- )
+	NEQk #02 ORA .Screen/sprite DEO
+	STH
+	INC GTHk STHr SWP ?&octave
+	POP POP2 JMP2r
+
+@note-pcm [
+	06 06 06 06 07 07 08 08 09 09 0a 0a 0b 0c 0c 0d
+	0e 0f 0f 11 12 13 15 16 18 1a 1c 1f 22 23 24 27
+	2a 2c 2e 31 33 36 38 3b 3d 40 44 47 4c 4f 51 55
+	57 5a 5d 5f 62 64 67 69 6c 6f 71 73 75 76 77 78
+	79 7a 7a 7a 7a 79 79 78 78 77 75 74 73 70 6e 6b
+	68 66 63 62 5f 5d 5a 59 58 57 56 55 54 53 53 53
+	53 52 52 52 52 53 53 54 55 56 57 58 5a 5c 5f 61
+	66 6b 7d 81 87 8b 8f 93 96 99 9a 9c 9d 9e 9f 9f
+	a0 a0 a1 a1 a1 a1 a1 a0 a0 9f 9e 9d 9b 9a 98 96
+	95 94 93 92 92 91 91 91 91 91 91 92 92 93 93 95
+	98 9a 9c 9e a0 a3 a5 ac af b1 b4 b6 b8 bc bf c3
+	c6 c8 ca cd d3 d6 da e0 e2 e4 e6 e7 e9 ea ec ed
+	ed ee ee ef ef ef ef ef ee ee ed ec eb e9 e7 e4
+	e2 df db d9 d3 cf ca c6 c0 b9 b5 af a8 a4 9e 9a
+	93 8e 89 81 7d 77 72 6e 67 62 5e 58 54 4b 47 42
+	3d 38 31 2f 26 21 1d 16 12 0f 09 07 07 06 05 05 ]
+
+@tile &left-full [
+	003f 7f7f 7f7f 7f7f 0000 3fbf bfbf bfbf
+	7f7f 7f7f 7f7f 7f7f bfbf bfbf bfbf bfbf
+	7f7f 7f7f 7f7f 7f7f bfbf bfbf bfbf bfbf ]
+	&right-full [
+	00fc fefe fefe fefe 0000 fcfc fcfc fcfc
+	fefe fefe fefe fefe fcfc fcfc fcfc fcfc
+	fefe fefe fefe fefe fcfc fcfc fcfc fcfc ]
+	&left [
+	000f 1f1f 1f1f 1f1f 0000 0f2f 2f2f 2f2f
+	1f1f 1f1f 1f1f 1f1f 2f2f 2f2f 2f2f 2f2f
+	1f1f 1f1f 2f5f 7f7f 2f2f 2f2f 1f3f bfbf ]
+	&right [
+	00f0 f8f8 f8f8 f8f8 0000 f0f0 f0f0 f0f0
+	f8f8 f8f8 f8f8 f8f8 f0f0 f0f0 f0f0 f0f0
+	f8f8 f8f8 f4fa fefe f0f0 f0f0 f8fc fcfc ]
+	&bottom [
+	7f7f 7f7f 7f7f 7f7f bfbf bfbf bfbf bfbf
+	fefe fefe fefe fefe fcfc fcfc fcfc fcfc
+	5f5f 405f 5f5f 3f00 bfa0 bfbf bf3f 0000
+	fafa 06fe fefa fc00 fc04 fcfc fcfc 0000 ]
+	&black [
+	0001 0303 0303 0303 0000 0004 0404 0404
+	0303 0303 0303 0303 0404 0404 0404 0404
+	0303 0301 0000 0000 0404 0406 0301 0000
+	0080 c0c0 c0c0 c0c0 0000 0000 0000 0000
+	c0c0 c0c0 c0c0 c0c0 0000 0000 0000 0000
+	c0c0 c080 0000 0000 0000 0040 c080 0000 ]
+
+@octave-icn [ 003f 7f7f 7f7f 7f3e ]
+
+@finger [
+	0708 1818 2828 292c 0007 0f0f 1f1f 1f1f
+	e010 1818 1c5c 9c3c 00e0 f0f0 f8f8 f8f8 ]
+	&body [
+	2727 2727 2727 2727 1f1f 1f1f 1f1f 1f1f
+	fcfc fcfc fcfc fcfc f8f8 f8f8 f8f8 f8f8
+	2727 2720 2724 2727 1f1f 1f1f 1f1f 1f1f
+	fcfc 3ccc fc1c fcfc f8f8 f8f8 f8f8 f8f8 ]
+
+@blank-icn $8
+
